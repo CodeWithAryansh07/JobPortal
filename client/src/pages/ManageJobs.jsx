@@ -1,14 +1,83 @@
 // import React from 'react'
 
 import moment from "moment"
-import { manageJobsData } from "../assets/assets"
+// import { manageJobsData } from "../assets/assets"
 import { useNavigate } from "react-router-dom"
+import { useContext, useEffect, useState } from "react"
+import { AppContext } from "../context/AppContext"
+import { toast } from "react-toastify"
+import axios from "axios"
+import Loading from "../components/Loading"
 
 const ManageJobs = () => {
 
-    const navigate = useNavigate()
+    const navigate = useNavigate();
 
-    return (
+    const [jobs, setJobs] = useState(false);
+
+    const { backendURL, companyToken } = useContext(AppContext);
+
+    // Function to fetch the company jobs 
+    const fetchCompanyJobs = async () => {
+        try {
+            const { data } = await axios.get(`${backendURL}/api/company/list-jobs`, {
+                headers: { token: companyToken }
+            });
+
+            if (data.success) {
+                setJobs(data.jobs.reverse());
+                console.log(data.jobs);
+                toast.success(data.message);
+            } else {
+                toast.error(data.message);
+            }
+        } catch (error) {
+            toast.error('An error occurred. Please try again.');
+            console.log(error);
+        }
+    };
+
+    // FUnction to change Job visibility
+
+    const changeJobVisibility = async (id) => {
+        try {
+            
+            const { data } = await axios.post(backendURL+'/api/company/change-visibility', { id }, { headers: { token: companyToken } 
+            });
+
+            if (data.success) {
+                toast.success(data.message);
+                fetchCompanyJobs();
+            } else {
+                toast.error(data.message);
+            }
+
+        } catch (error) {
+            toast.error(error.message);
+        }
+    }
+    
+
+    // Function to check whether the visibility is true or false
+
+    const checkVisibility = (job) => {
+        if (job.visible) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    useEffect(() => {
+        if (companyToken) {
+            fetchCompanyJobs()
+        }
+    }, [companyToken])
+
+    return jobs ? jobs.length === 0 ? (
+        <div className="flex items-center justify-center h-[70vh]">
+            <p className="text-xl sm:text-2xl">No Jobs Posted Yet</p>
+        </div>): (
         <div className="container p-4 max-w-5xl">
             <div className="overflow-x-auto">
                 <table className="min-w-full bg-white border border-gray-200 max-sm:text-sm">
@@ -23,7 +92,7 @@ const ManageJobs = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {manageJobsData.map((job, index) => (
+                        {jobs.map((job, index) => (
                             <tr className="text-gray-700" key={index}>
                                 <td className="py-2 px-4 border-b max-sm:hidden">{index + 1}</td>
                                 <td className="py-2 px-4 border-b">{job.title}</td>
@@ -31,7 +100,7 @@ const ManageJobs = () => {
                                 <td className="py-2 px-4 border-b m,max-sm:hidden">{job.location}</td>
                                 <td className="py-2 px-4 border-b text-center">{job.applicants}</td>
                                 <td className="py-2 px-4 border-b">
-                                    <input className="scale-125 ml-4" type="checkbox" name="" id="" />
+                                    <input onChange={() => changeJobVisibility(job._id)} className="scale-125 ml-4" type="checkbox" name="" id="" defaultChecked={checkVisibility(job)} />
                                 </td>
                             </tr>
                         ))}
@@ -42,7 +111,7 @@ const ManageJobs = () => {
                 <button onClick={() => navigate('/dashboard/add-job')} className="bg-black text-white py-2 px-4 rounded">Add new Job</button>
             </div>
         </div>
-    )
-}
+    ): <Loading />
+} 
 
 export default ManageJobs
